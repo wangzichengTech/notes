@@ -2,7 +2,7 @@
 
 # Spring
 
-## 第一章
+## 基础第一章
 
 
 
@@ -184,7 +184,7 @@ private Set<BeanDefinition> scanCandidateComponents(String basePackage) {
 }
 ```
 
-## 第二章
+## 基础第二章
 
 
 
@@ -358,9 +358,139 @@ private static class ConvertersForPair {
 }
 ```
 
+加载xml
+
+```java
+@Test
+    public void testRegistryByXml(){
+        BeanDefinitionRegistry registry = new SimpleBeanDefinitionRegistry();
+        XmlBeanDefinitionReader xmlReader = new XmlBeanDefinitionReader(registry);
+        xmlReader.loadBeanDefinitions("classpath:bean.xml");
+        logger.info("Dog -> {}",registry.getBeanDefinition("dog").getBeanClassName());
+    }
+```
+
+```java
+public int loadBeanDefinitions(String location, @Nullable Set<Resource> actualResources) throws BeanDefinitionStoreException {
+    //类加载器
+        ResourceLoader resourceLoader = this.getResourceLoader();
+        if (resourceLoader == null) {
+            throw new BeanDefinitionStoreException("Cannot load bean definitions from location [" + location + "]: no ResourceLoader available");
+        } else {
+            int count;
+            if (resourceLoader instanceof ResourcePatternResolver) {
+                try {
+                    Resource[] resources = ((ResourcePatternResolver)resourceLoader).getResources(location);
+                    //重点看看
+                    count = this.loadBeanDefinitions(resources);
+                    if (actualResources != null) {
+                        Collections.addAll(actualResources, resources);
+                    }
+
+                    if (this.logger.isTraceEnabled()) {
+                        this.logger.trace("Loaded " + count + " bean definitions from location pattern [" + location + "]");
+                    }
+
+                    return count;
+                } catch (IOException var6) {
+                    throw new BeanDefinitionStoreException("Could not resolve bean definition resource pattern [" + location + "]", var6);
+                }
+            } else {
+                Resource resource = resourceLoader.getResource(location);
+                count = this.loadBeanDefinitions((Resource)resource);
+                if (actualResources != null) {
+                    actualResources.add(resource);
+                }
+
+                if (this.logger.isTraceEnabled()) {
+                    this.logger.trace("Loaded " + count + " bean definitions from location [" + location + "]");
+                }
+
+                return count;
+            }
+        }
+    }
+```
+
+环境抽象
+
+spring提供了Environment接口，是对环境的抽象，集成在容器中，它模拟了应用程序环境的两个关键方面，分别是profiles和properties。
+
+```java
+@Test
+    public void testStandardEnvironment(){
+        StandardEnvironment env = new StandardEnvironment();
+        Properties properties = new Properties();
+        properties.setProperty("age","12");
+        PropertySource source = new PropertiesPropertySource("my-propertySource",properties);
+        MutablePropertySources propertySources = env.getPropertySources();
+        propertySources.addLast(source);
+        System.out.println(env.getProperty("age"));
+    }
+```
+
+![image-20231209162731786](assets/image-20231209162731786.png)
+
+@Profile("")注解允许指出当一个或多个bean在哪一种Profile被激活时被注入
+
+![image-20231209163001220](assets/image-20231209163001220.png)
+
+![image-20231209163113081](assets/image-20231209163113081.png)
+
+![image-20231209163158647](assets/image-20231209163158647.png)
+
+spring发布订阅模式
+
+![image-20231209163357541](assets/image-20231209163357541.png)
 
 
 
+
+
+![image-20231209165848759](assets/image-20231209165848759.png)
+
+```java
+ public void addApplicationListener(ApplicationListener<?> listener) {
+        synchronized(this.retrievalMutex) {
+            Object singletonTarget = AopProxyUtils.getSingletonTarget(listener);
+            if (singletonTarget instanceof ApplicationListener) {
+                this.defaultRetriever.applicationListeners.remove(singletonTarget);
+            }
+
+            this.defaultRetriever.applicationListeners.add(listener);
+            this.retrieverCache.clear();
+        }
+    }
+```
+
+国际化
+
+![image-20231211182248489](assets/image-20231211182248489.png)
+
+```java
+@Test
+    public void testMessageSource(){
+        ResourceBundleMessageSource rbs = new ResourceBundleMessageSource();
+        rbs.setBasename("i18n/message");
+        rbs.setDefaultEncoding("UTF-8");
+        rbs.setDefaultLocale(Locale.CHINA);
+        String hello = rbs.getMessage("hello", new Object[]{"tom"}, Locale.getDefault());
+        System.out.println(hello);
+    }
+
+```
+
+表达式
+
+```java
+@Test
+    public void testExpressionParser(){
+        ExpressionParser expressionParser = new SpelExpressionParser();
+        Expression expression = expressionParser.parseExpression("'hello'.length");
+        System.out.println(expression.getValue());
+    }
+
+```
 
 
 
